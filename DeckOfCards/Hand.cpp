@@ -10,15 +10,15 @@
 #include <map>
 #include <algorithm>
 
-Hand::Hand()
+Hand::Hand() // initializes the payouts
 {
+	initPayoutHands();
 }
 
 
 Hand::~Hand()
 {
 }
-
 
 void Hand::clear() // clears all the cards in hand
 {
@@ -28,23 +28,94 @@ void Hand::clear() // clears all the cards in hand
 void Hand::addCard(CardPtr c) // adds a card to hand
 {
 	_hand.push_back(c);
+	_draw.push_back(false);
+}
+
+void Hand::removeCard(int c) // remoces a card from the hand
+{
+	_hand.erase(_hand.begin() + (c - 1));
+}
+
+void Hand::redrawCard(int i, CardPtr c)
+{
+	_hand[i - 1] = c; //draws a new card from the deck and places it in the position the player picked
+}
+
+void Hand::initPayoutHands() // loads the payout mao with enum and bools
+{
+	std::pair<PokerHand, bool> pair(PokerHand::PAIR, false);
+	std::pair<PokerHand, bool> twoPair(PokerHand::TWOPAIR, false);
+	std::pair<PokerHand, bool> threeOfAKind(PokerHand::THREEOFAKIND, false);
+	std::pair<PokerHand, bool> straight(PokerHand::STRAIGHT, false);
+	std::pair<PokerHand, bool> flush(PokerHand::FLUSH, false);
+	std::pair<PokerHand, bool> fullHouse(PokerHand::FULLHOUSE, false);
+	std::pair<PokerHand, bool> fourOfAKind(PokerHand::FOUROFAKIND, false);
+	std::pair<PokerHand, bool> straightFlush(PokerHand::STRAIGHTFLUSH, false);
+	std::pair<PokerHand, bool> royalFlush(PokerHand::ROYALFLUSH, false);
+
+	_payoutHands.insert(pair);
+	_payoutHands.insert(twoPair);
+	_payoutHands.insert(threeOfAKind);
+	_payoutHands.insert(straight);
+	_payoutHands.insert(flush);
+	_payoutHands.insert(fullHouse);
+	_payoutHands.insert(fourOfAKind);
+	_payoutHands.insert(straightFlush);
+	_payoutHands.insert(royalFlush);
 }
 
 
+void Hand::score()  //checks the hand for a win
+{
+
+	if (isRoyalFlush())
+		_payoutHands[PokerHand::ROYALFLUSH] = true;
+	else if (isStraightFlush())
+		_payoutHands[PokerHand::STRAIGHTFLUSH] = true;
+	else if (isFourOfAKind())
+		_payoutHands[PokerHand::FOUROFAKIND] = true;
+	else if (isFullHouse())
+		_payoutHands[PokerHand::FULLHOUSE] = true;
+	else if (isFlush())
+		_payoutHands[PokerHand::FLUSH] = true;
+	else if (isStraight())
+		_payoutHands[PokerHand::STRAIGHT] = true;
+	else if (isThreeOfAKind())
+		_payoutHands[PokerHand::THREEOFAKIND] = true;
+	else if (isTwoPair())
+		_payoutHands[PokerHand::TWOPAIR] = true;
+	else if (isPair())
+		_payoutHands[PokerHand::PAIR] = true;
+}
+
+bool Hand::isDraw(int idx) // checks if you want to draw a card
+{
+	if (_draw[idx] == true)  
+		return true;
+	else
+		return false;
+}
+
+void Hand::toggle(int idx)
+{
+	_draw[idx - 1] = !_draw[idx - 1]; // allows player to toggle between draw and hold
+}
+
 std::ostream& operator<<(std::ostream& os, const Hand& h)  // overloads the cout operator 
 {
-	if (h.size() == 0)
-	{
-		os << "I'm sorry the hand is empty \n";
+	int i = 1;
+	int j = 0;
+	while (j < h.size()) {
+		if (h._draw[j] == true)
+			std::cout << i << ") " << *h._hand[j] << " (draw)" << std::endl;
+		else
+			std::cout << i << ") " << *h._hand[j] << " (hold)" << std::endl;
+
+		i++;
+		j++;
+
 	}
 
-	else
-	{
-		for (int i = 0; i < h.size(); i++)
-		{
-			os << *h._hand[i] << std::endl;
-		}
-	}
 	return os;
 }
 
@@ -62,6 +133,7 @@ bool Hand::isPair()					// returns boolean if there is a pair and number
 
 		for (int i = 0; i < _hand.size(); i++)
 		{
+			if(_hand[i]->face == Face::KING || _hand[i]->face == Face::QUEEN || _hand[i]->face == Face::JACK || _hand[i]->face == Face::ACE)
 			h[_hand[i]->face]++;
 		}
 
@@ -91,7 +163,7 @@ bool Hand::isTwoPair()					// returns boolean if there is a pair and number
 		h[_hand[i]->face]++;
 	}
 
-	int pairCount = count_if(h.begin(), h.end(), [](std::pair<Face, int> e) {return (e.second == 2); });
+	int pairCount = count_if(h.begin(), h.end(), [](std::pair<Face, int> e) {return (e.second == 2); }); // checks if there are two
 	if (pairCount > 1)
 	{
 		isTwoPair = true;
@@ -143,7 +215,7 @@ bool Hand::isFourOfAKind()					// returns boolean if there is a 4 of a kind
 			h[_hand[i]->face]++;
 		}
 
-		int fourCount = count_if(h.begin(), h.end(), [](std::pair<Face, int> e) {return (e.second == 4); });
+		int fourCount = count_if(h.begin(), h.end(), [](std::pair<Face, int> e) {return (e.second == 4); }); // checks if there are four
 		if (fourCount > 0)
 		{
 			isFour = true;
@@ -238,7 +310,7 @@ bool Hand::isStraightFlush()
 	return(isStraight() && isFlush());
 }
 
-bool Hand::isRoyalFlush()
+bool Hand::isRoyalFlush() // checks if there is a royal flush
 {
 	bool isRF = false;
 
@@ -254,22 +326,26 @@ bool Hand::isRoyalFlush()
 
 	auto start = h.begin();
 
-	if (*start == 0)
+	if (h.size() == 5)
 	{
-		h.insert(13);
-	}
-
-	auto last = h.end();
-	last--;
-
-	if (*last == 13)
-	{
-		last--;
-		if (*last == 12)
+		if (*start == 0)
 		{
-			isRF = true;
+			h.insert(13);
+		}
+
+		auto last = h.end();
+		last--;
+
+		if (*last == 13)
+		{
+			last--;
+			if (*last == 12)
+			{
+				isRF = true;
+			}
 		}
 	}
+	
 
  	return isRF;
 }
